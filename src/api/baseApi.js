@@ -1,0 +1,103 @@
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-param-reassign */
+import axios from 'axios';
+
+// const baseUrl = import.meta.env.BASE_URL;
+// const contentType = import.meta.env.BASE_CONTENT_TYPE;
+const baseUrl = 'http://localhost:5100';
+const contentType = 'application/json';
+
+const headersData = {
+  'Content-Type': contentType
+};
+
+export const axiosInstance = axios.create({
+  baseURL: baseUrl,
+  timeout: 60000,
+  headers: headersData
+});
+
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+axiosInstance.interceptors.response.use(
+  async (response) => {
+    if (response.data.status === 401) {
+      const originalRequest = response.config;
+
+      const passedUrl = ['/web/login'];
+      if (originalRequest.url && passedUrl.includes(originalRequest.url)) return response;
+
+      if (originalRequest._retry) return response;
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+          }
+          return axiosInstance(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshResponse = await axios.post(`${baseUrl}/web/refresh/token`, {});
+
+        if (refreshResponse.data.status === 200) {
+          const newAccessToken = refreshResponse.data.token;
+          localStorage.setItem('accessToken', newAccessToken);
+          axiosInstance.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
+          processQueue(null, newAccessToken);
+
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          }
+          return await axiosInstance(originalRequest);
+        }
+
+        processQueue(refreshResponse.data.message, null);
+        window.location.href = '/404';
+        return await Promise.reject(refreshResponse.data.message);
+      } catch (err) {
+        /* empty */
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return response;
+  },
+  (error) => {
+    // Here is you can change your access token, refresh token
+    return Promise.reject(error);
+  }
+);
+// );
