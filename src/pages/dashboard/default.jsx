@@ -17,7 +17,7 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
-
+import ButtonGroup from '@mui/material/ButtonGroup';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -28,7 +28,18 @@ import MainCard from 'components/MainCard';
 import config from 'config';
 
 import { useQuery } from '@tanstack/react-query';
-import { ProductQuery, useAddSet, useAddProduct, useAddCategory } from 'entities/product';
+import {
+  ProductQuery,
+  useAddSet,
+  useAddProduct,
+  useAddCategory,
+  useDeleteCategory,
+  useDeleteProduct,
+  useDeleteSetProduct,
+  useUpdateProduct,
+  useUpdateSetProduct,
+  useUpdateCategory
+} from 'entities/product';
 import { height, width } from '@mui/system';
 import AnimateButton from 'components/@extended/AnimateButton';
 import Button from '@mui/material/Button';
@@ -62,12 +73,22 @@ export default function DashboardDefault() {
   const useAddSetMutation = useAddSet();
   const useAddProductMutation = useAddProduct();
   const useAddCategoryMutation = useAddCategory();
-  const [options, setOptions] = useState([]);
+  const useDeleteCategoryMutation = useDeleteCategory();
+  const useDeleteProductMutation = useDeleteProduct();
+  const useDeleteSetProductMutation = useDeleteSetProduct();
+  const useUpdateProductMutation = useUpdateProduct();
+  const useUpdateSetProductMutation = useUpdateSetProduct();
+  const useUpdateCategoryMutation = useUpdateCategory();
 
+  const [options, setOptions] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);
   const [isOpen, setIsOpen] = useState(null);
   const [value, setValue] = useState(0);
   const [category, setCategory] = useState([]);
   const [setFile, setSetFile] = useState(null);
+  const [currentItem, setCurrentItem] = useState(null);
+
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
@@ -83,6 +104,52 @@ export default function DashboardDefault() {
 
     if (value === 2) {
       setIsOpen('category');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selected || !selectedType) return;
+
+    if (selectedType === 'category') {
+      useDeleteCategoryMutation.mutate(selected, {
+        onSuccess: (data) => {
+          categoryRefetch();
+          setIsOpen(null);
+        },
+        onError: (error) => {
+          console.log(error);
+        }
+      });
+
+      return;
+    }
+
+    if (selectedType === 'product') {
+      useDeleteProductMutation.mutate(selected, {
+        onSuccess: (data) => {
+          productRefetch();
+          setIsOpen(null);
+        },
+        onError: (error) => {
+          console.log(error);
+        }
+      });
+
+      return;
+    }
+
+    if (selectedType === 'set') {
+      useDeleteSetProductMutation.mutate(selected, {
+        onSuccess: (data) => {
+          setRefetch();
+          setIsOpen(null);
+        },
+        onError: (error) => {
+          console.log(error);
+        }
+      });
+
+      return;
     }
   };
 
@@ -117,6 +184,7 @@ export default function DashboardDefault() {
         onSuccess: (data) => {
           setRefetch();
           setIsOpen(null);
+          setSetFile(null);
         },
         onError: (error) => {
           console.log(error);
@@ -130,12 +198,70 @@ export default function DashboardDefault() {
         onSuccess: (data) => {
           productRefetch();
           setIsOpen(null);
+          setSetFile(null);
         },
         onError: (error) => {
           console.log(error);
         }
       });
     }
+  };
+
+  const updateProductSubmit = (values) => {
+    const formData = new FormData();
+    Object.entries(values).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+
+    if (setFile) {
+      formData.append('file', setFile);
+    }
+
+    useUpdateProductMutation.mutate(formData, {
+      onSuccess: (data) => {
+        productRefetch();
+        setIsOpen(null);
+        setSetFile(null);
+      },
+      onError: (error) => {
+        console.log(error);
+      }
+    });
+  };
+
+  const updateSetProductSubmit = (values) => {
+    const formData = new FormData();
+    Object.entries(values).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+
+    if (setFile) {
+      formData.append('file', setFile);
+    }
+
+    useUpdateSetProductMutation.mutate(formData, {
+      onSuccess: (data) => {
+        setRefetch();
+        setIsOpen(null);
+        setSetFile(null);
+      },
+      onError: (error) => {
+        console.log(error);
+      }
+    });
+  };
+
+  const updateCategorySubmit = (values) => {
+    useUpdateCategoryMutation.mutate(values, {
+      onSuccess: (data) => {
+        categoryRefetch();
+        setIsOpen(null);
+        setSetFile(null);
+      },
+      onError: (error) => {
+        console.log(error);
+      }
+    });
   };
 
   const handleFileChange = (event) => {
@@ -188,14 +314,39 @@ export default function DashboardDefault() {
                     component={ListItemButton}
                     divider
                     secondaryAction={
-                      <Stack sx={{ alignItems: 'flex-end' }}>
-                        <Typography variant="subtitle1" noWrap>
-                          ${item.price.toLocaleString()}
-                        </Typography>
-                        <Typography variant="h6" color="secondary" noWrap>
-                          -
-                        </Typography>
-                      </Stack>
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <Stack sx={{ alignItems: 'flex-end' }}>
+                          <Typography variant="subtitle1" noWrap>
+                            ${item.price.toLocaleString()}
+                          </Typography>
+                          <Typography variant="h6" color="secondary" noWrap>
+                            -
+                          </Typography>
+                        </Stack>
+                        <ButtonGroup variant="outlined" aria-label="Loading button group">
+                          <Button
+                            color="warning"
+                            onClick={() => {
+                              console.log(item.items);
+
+                              setCurrentItem(item);
+                              setIsOpen('updateSet');
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            color="error"
+                            onClick={() => {
+                              setSelected(item.seq);
+                              setSelectedType('set');
+                              setIsOpen('delete');
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </ButtonGroup>
+                      </div>
                     }
                   >
                     <ListItemAvatar>
@@ -224,14 +375,37 @@ export default function DashboardDefault() {
                     component={ListItemButton}
                     divider
                     secondaryAction={
-                      <Stack sx={{ alignItems: 'flex-end' }}>
-                        <Typography variant="subtitle1" noWrap>
-                          ${item.price.toLocaleString()}
-                        </Typography>
-                        <Typography variant="h6" color="secondary" noWrap>
-                          -
-                        </Typography>
-                      </Stack>
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <Stack sx={{ alignItems: 'flex-end' }}>
+                          <Typography variant="subtitle1" noWrap>
+                            ${item.price.toLocaleString()}
+                          </Typography>
+                          <Typography variant="h6" color="secondary" noWrap>
+                            -
+                          </Typography>
+                        </Stack>
+                        <ButtonGroup variant="outlined" aria-label="Loading button group">
+                          <Button
+                            color="warning"
+                            onClick={() => {
+                              setCurrentItem(item);
+                              setIsOpen('updateProduct');
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            color="error"
+                            onClick={() => {
+                              setSelected(item.seq);
+                              setSelectedType('product');
+                              setIsOpen('delete');
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </ButtonGroup>
+                      </div>
                     }
                   >
                     <ListItemAvatar>
@@ -255,7 +429,34 @@ export default function DashboardDefault() {
               {categoryList &&
                 categoryList.data &&
                 categoryList.data.map((item) => (
-                  <ListItem key={item.seq} component={ListItemButton} divider>
+                  <ListItem
+                    key={item.seq}
+                    component={ListItemButton}
+                    divider
+                    secondaryAction={
+                      <ButtonGroup variant="outlined" aria-label="Loading button group">
+                        <Button
+                          color="warning"
+                          onClick={() => {
+                            setCurrentItem(item);
+                            setIsOpen('updateCategory');
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          color="error"
+                          onClick={() => {
+                            setSelected(item.seq);
+                            setSelectedType('category');
+                            setIsOpen('delete');
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </ButtonGroup>
+                    }
+                  >
                     <ListItemText primary={<Typography variant="subtitle1">{item.name}</Typography>} secondary={item.description} />
                   </ListItem>
                 ))}
@@ -511,6 +712,299 @@ export default function DashboardDefault() {
             name: Yup.string().max(90).required('Name is required')
           })}
           onSubmit={submit}
+        >
+          {({ errors, handleBlur, handleChange, touched, values, handleSubmit, setFieldValue }) => (
+            <form noValidate onSubmit={handleSubmit}>
+              <DialogContent>
+                <Grid container spacing={1}>
+                  <InputLabel htmlFor="email-login">Category Name</InputLabel>
+                  <OutlinedInput
+                    id="name"
+                    type="text"
+                    value={values.name}
+                    name="name"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter category name"
+                    fullWidth
+                    error={Boolean(touched.name && errors.name)}
+                  />
+                </Grid>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setIsOpen(null)}>Cancel</Button>
+                <Button type="submit" autoFocus>
+                  SAVE
+                </Button>
+              </DialogActions>
+            </form>
+          )}
+        </Formik>
+      </Dialog>
+
+      <Dialog open={isOpen == 'delete'} keepMounted onClose={() => setIsOpen(null)} aria-describedby="alert-dialog-slide-description">
+        <DialogTitle>{'Confirm the action'}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-slide-description">Do you really want to delete this banner?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsOpen(null)}>CANCEL</Button>
+          <Button onClick={handleDelete} color="error">
+            CONFIRM
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={isOpen === 'updateProduct'}
+        onClose={() => setIsOpen(null)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{'Update Product'}</DialogTitle>
+
+        <Formik
+          initialValues={{
+            seq: currentItem?.seq ?? '',
+            name: currentItem?.name ?? '',
+            price: currentItem?.price ?? '',
+            description: currentItem?.description ?? '',
+            category_id: currentItem?.category_id ?? '',
+            ingredients: currentItem?.ingredients ?? ''
+          }}
+          validationSchema={Yup.object().shape({
+            description: Yup.string().max(250).required('Description is required'),
+            name: Yup.string().max(90).required('Name is required'),
+            ingredients: Yup.string().max(255).required('Ingredients is required'),
+            category_id: Yup.number().required('Category is required'),
+            price: Yup.number().required('Price is required')
+          })}
+          onSubmit={updateProductSubmit}
+        >
+          {({ errors, handleBlur, handleChange, touched, values, handleSubmit, setFieldValue }) => (
+            <form noValidate onSubmit={handleSubmit}>
+              <DialogContent>
+                <Grid container spacing={1}>
+                  <InputLabel htmlFor="email-login">Product Name</InputLabel>
+                  <OutlinedInput
+                    id="name"
+                    type="text"
+                    value={values.name}
+                    name="name"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter product name"
+                    fullWidth
+                    error={Boolean(touched.name && errors.name)}
+                  />
+
+                  <InputLabel htmlFor="set-price">Product Price</InputLabel>
+                  <OutlinedInput
+                    id="price"
+                    type="text"
+                    value={values.price}
+                    name="price"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter product price"
+                    fullWidth
+                    error={Boolean(touched.price && errors.price)}
+                  />
+
+                  <InputLabel htmlFor="set-description">Product Description</InputLabel>
+                  <OutlinedInput
+                    id="description"
+                    type="text"
+                    value={values.description}
+                    name="description"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter product description"
+                    fullWidth
+                    error={Boolean(touched.description && errors.description)}
+                  />
+
+                  <InputLabel htmlFor="set-description">Product Ingredients</InputLabel>
+                  <OutlinedInput
+                    id="ingredients"
+                    type="text"
+                    value={values.ingredients}
+                    name="ingredients"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter product ingredients"
+                    fullWidth
+                    error={Boolean(touched.ingredients && errors.ingredients)}
+                  />
+
+                  <InputLabel htmlFor="set-category-id">Select Category</InputLabel>
+                  <Select
+                    id="category_id"
+                    name="category_id"
+                    value={values.category_id}
+                    label="Select Category"
+                    fullWidth
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    error={Boolean(touched.category_id && errors.category_id)}
+                  >
+                    {category.map((item) => (
+                      <MenuItem value={item.seq}>{item.name}</MenuItem>
+                    ))}
+                  </Select>
+
+                  <Button variant="contained" component="label" color="info" fullWidth>
+                    {setFile ? setFile.name : 'Upload File'}
+                    <input type="file" hidden onChange={handleFileChange} />
+                  </Button>
+                </Grid>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setIsOpen(null)}>Cancel</Button>
+                <Button type="submit" autoFocus>
+                  SAVE
+                </Button>
+              </DialogActions>
+            </form>
+          )}
+        </Formik>
+      </Dialog>
+
+      <Dialog
+        open={isOpen === 'updateSet'}
+        onClose={() => setIsOpen(null)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{'Update Set'}</DialogTitle>
+
+        <Formik
+          initialValues={{
+            seq: currentItem?.seq ?? '',
+            name: currentItem?.name ?? '',
+            price: currentItem?.price ?? '',
+            description: currentItem?.description ?? '',
+            category_id: currentItem?.category_id ?? '',
+            products: currentItem?.items ? currentItem?.items.map((item) => item.seq) : []
+          }}
+          validationSchema={Yup.object().shape({
+            description: Yup.string().max(250).required('Description is required'),
+            name: Yup.string().max(90).required('Name is required'),
+            category_id: Yup.number().required('Category is required'),
+            price: Yup.number().required('Price is required')
+          })}
+          onSubmit={updateSetProductSubmit}
+        >
+          {({ errors, handleBlur, handleChange, touched, values, handleSubmit, setFieldValue }) => (
+            <form noValidate onSubmit={handleSubmit}>
+              <DialogContent>
+                <Grid container spacing={1}>
+                  <InputLabel htmlFor="email-login">Set Name</InputLabel>
+                  <OutlinedInput
+                    id="name"
+                    type="text"
+                    value={values.name}
+                    name="name"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter set name"
+                    fullWidth
+                    error={Boolean(touched.name && errors.name)}
+                  />
+
+                  <InputLabel htmlFor="set-price">Set Price</InputLabel>
+                  <OutlinedInput
+                    id="price"
+                    type="text"
+                    value={values.price}
+                    name="price"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter set price"
+                    fullWidth
+                    error={Boolean(touched.price && errors.price)}
+                  />
+
+                  <InputLabel htmlFor="set-description">Set Description</InputLabel>
+                  <OutlinedInput
+                    id="description"
+                    type="text"
+                    value={values.description}
+                    name="description"
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    placeholder="Enter set description"
+                    fullWidth
+                    error={Boolean(touched.description && errors.description)}
+                  />
+
+                  <InputLabel htmlFor="set-category-id">Select Category</InputLabel>
+                  <Select
+                    id="category_id"
+                    name="category_id"
+                    value={values.category_id}
+                    label="Select Category"
+                    fullWidth
+                    onBlur={handleBlur}
+                    onChange={handleChange}
+                    error={Boolean(touched.category_id && errors.category_id)}
+                  >
+                    {category.map((item) => (
+                      <MenuItem value={item.seq}>{item.name}</MenuItem>
+                    ))}
+                  </Select>
+
+                  <Button variant="contained" component="label" color="info" fullWidth>
+                    {setFile ? setFile.name : 'Upload File'}
+                    <input type="file" hidden onChange={handleFileChange} />
+                  </Button>
+
+                  <InputLabel htmlFor="set-category-id">Select Products</InputLabel>
+                  <Autocomplete
+                    fullWidth
+                    multiple
+                    options={options}
+                    getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) => option.seq === value.seq}
+                    value={options.filter((option) => values.products.includes(option.seq))}
+                    onChange={(e, newValue) => {
+                      setFieldValue(
+                        'products',
+                        newValue.map((v) => v.seq)
+                      );
+                    }}
+                    renderInput={(params) => <TextField {...params} label="Select product" />}
+                  />
+                </Grid>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setIsOpen(null)}>Cancel</Button>
+                <Button type="submit" autoFocus>
+                  SAVE
+                </Button>
+              </DialogActions>
+            </form>
+          )}
+        </Formik>
+      </Dialog>
+
+      <Dialog
+        open={isOpen === 'updateCategory'}
+        onClose={() => setIsOpen(null)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{'Update Category'}</DialogTitle>
+
+        <Formik
+          initialValues={{
+            seq: currentItem?.seq ?? '',
+            name: currentItem?.name ?? ''
+          }}
+          validationSchema={Yup.object().shape({
+            name: Yup.string().max(90).required('Name is required')
+          })}
+          onSubmit={updateCategorySubmit}
         >
           {({ errors, handleBlur, handleChange, touched, values, handleSubmit, setFieldValue }) => (
             <form noValidate onSubmit={handleSubmit}>
