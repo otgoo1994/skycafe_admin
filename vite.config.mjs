@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   const PORT = 3000;
 
   return {
-    base: API_URL,
+    base: '/',
     server: {
       open: true,
       port: PORT,
