@@ -6,7 +6,8 @@ export const MINI_DRAWER_WIDTH = 60;
 
 const config = {
   fontFamily: `'Public Sans', sans-serif`,
-  appUrl: 'http://localhost:5100'
+  // appUrl: 'http://localhost:5100'
+  appUrl: 'https://skycafe.mn'
 };
 
 export default config;

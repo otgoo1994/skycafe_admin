@@ -5,7 +5,7 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const API_URL = env.BASE_URL || 'http://localhost:5100';
+  const API_URL = env.BASE_URL || 'https://api.skycafe.mn';
 
   const PORT = 3000;
 
