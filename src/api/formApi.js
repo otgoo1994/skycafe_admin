@@ -3,8 +3,8 @@
 import axios from 'axios';
 
 // const baseUrl = import.meta.env.BASE_URL;
-const baseUrl = 'http://localhost:5100';
-// const baseUrl = 'https://api.skycafe.mn';
+// const baseUrl = 'http://localhost:5100';
+const baseUrl = 'https://api.skycafe.mn';
 
 const headersFormData = {
   // 'Content-Type': 'multipart/form-data'

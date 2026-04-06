@@ -4,8 +4,8 @@ import axios from 'axios';
 
 // const baseUrl = import.meta.env.BASE_URL;
 // const contentType = import.meta.env.BASE_CONTENT_TYPE;
-const baseUrl = 'http://localhost:5100';
-// const baseUrl = 'https://api.skycafe.mn';
+// const baseUrl = 'http://localhost:5100';
+const baseUrl = 'https://api.skycafe.mn';
 const contentType = 'application/json';
 
 const headersData = {
